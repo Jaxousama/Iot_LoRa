@@ -26,6 +26,8 @@
 #include <string.h>
 #include <inttypes.h>
 
+#include "struct/LinkListGeneric.h"
+
 #include "thread.h"
 #include "shell.h"
 //#include "shell_commands.h"
@@ -54,6 +56,14 @@ static kernel_pid_t _recv_pid;
 
 static char message[32];
 static sx127x_t sx127x;
+
+static List* list_user;
+
+typedef struct user_info{
+    int count;
+    char* username;
+}User
+
 
 int lora_setup_cmd(int argc, char **argv)
 {
@@ -235,6 +245,7 @@ int register_cmd(int argc, char **argv)
 
     return 0;
 }
+
 char *pseudo = "JAX\0";
 uint32_t msg_conter = 0;
 
@@ -587,9 +598,22 @@ int init_sx1272_cmd(int argc, char **argv)
 	    }
         puts("5");
 
+        list_user = initLinklist(NULL, compare_user, NULL);
+        User* username = malloc(sizeof(user_info));
+        username->count = 0;
+        username->username = "Jax"
+        addHead(list_user,initCell())
         return 0;
 }
 
+int compare_user(char* user1,char* user2){
+
+    if (strcmp(user , user2)){
+        return 1;
+    }
+
+    return 0;
+}
 
 static const shell_command_t shell_commands[] = {
 	{ "init",    "Initialize SX1272",     					init_sx1272_cmd },
