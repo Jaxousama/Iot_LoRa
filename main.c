@@ -235,49 +235,20 @@ int register_cmd(int argc, char **argv)
 
     return 0;
 }
-char *pseudo = "JAX\0";
-uint32_t msg_conter = 0;
-
-int mp_cmd(int argc, char **argv)
-{
-    if (argc <= 2) {
-        puts("usage: send <target> <payload>");
-        return -1;
-    }
-
-    char* msg = malloc(strlen(argv[2]) + strlen(pseudo) + strlen(argv[1]) + 10);  
-    sprintf(msg, "%s@%s:%lu:%s", pseudo, argv[1], msg_conter++, argv[2]);
-    printf("sending \"%s\" payload (%u bytes)\n",
-           msg, (unsigned)strlen(msg) + 1);
-    iolist_t iolist = {
-        .iol_base = msg,
-        .iol_len = (strlen(msg) + 1)
-    };
-
-    netdev_t *netdev = &sx127x.netdev;
-
-    if (netdev->driver->send(netdev, &iolist) == -ENOTSUP) {
-        puts("Cannot send: radio is still transmitting");
-    }
-    free(msg);
-
-    return 0;
-}
 
 int send_cmd(int argc, char **argv)
 {
-    if (argc <= 2) {
-        puts("usage: send <target> <payload>");
+    if (argc <= 1) {
+        puts("usage: send <payload>");
         return -1;
     }
 
-    char* msg = malloc(strlen(argv[2]) + strlen(pseudo) + strlen(argv[1]) + 10);  
-    sprintf(msg, "%s#%s:%lu:%s", pseudo, argv[1], msg_conter++, argv[2]);
     printf("sending \"%s\" payload (%u bytes)\n",
-           msg, (unsigned)strlen(msg) + 1);
+           argv[1], (unsigned)strlen(argv[1]) + 1);
+
     iolist_t iolist = {
-        .iol_base = msg,
-        .iol_len = (strlen(msg) + 1)
+        .iol_base = argv[1],
+        .iol_len = (strlen(argv[1]) + 1)
     };
 
     netdev_t *netdev = &sx127x.netdev;
@@ -285,7 +256,6 @@ int send_cmd(int argc, char **argv)
     if (netdev->driver->send(netdev, &iolist) == -ENOTSUP) {
         puts("Cannot send: radio is still transmitting");
     }
-    free(msg);
 
     return 0;
 }
@@ -603,7 +573,6 @@ static const shell_command_t shell_commands[] = {
     { "channel",  "Get/Set channel frequency (in Hz)",       channel_cmd },
     { "register", "Get/Set value(s) of registers of sx127x", register_cmd },
     { "send",     "Send raw payload string",                 send_cmd },
-    { "mp",      "Send raw payload string in a user",        mp_cmd },    
     { "listen",   "Start raw payload listener",              listen_cmd },
     { "reset",    "Reset the sx127x device",                 reset_cmd },
     { NULL, NULL, NULL }
