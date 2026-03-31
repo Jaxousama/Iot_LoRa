@@ -57,9 +57,11 @@ static kernel_pid_t _recv_pid;
 static char message[32];
 static sx127x_t sx127x;
 
-static uint8_t number_user = 0;  
+static uint8_t number_user = 0;
 
 static List* list_user;
+
+static char** list_channel;
 
 typedef struct user_info{
     int num;
@@ -79,11 +81,14 @@ void print_user(User* user){
     printf("name : %s, num : %d\n",user->username,user->num);
 }
 
-void print_list_user(){
+int print_list_user(int argc, char** argv){
+    (void)argc;
+    (void)argv;
     printLinklist(list_user);
+    return 1;
 }
 
-int free_user(User* user){
+void free_user(User* user){
     free(user->username);
 }
 
@@ -269,7 +274,7 @@ int register_cmd(int argc, char **argv)
     return 0;
 }
 
-char *pseudo = "JAX\0";
+char pseudo[4] = "Jax\0";
 uint32_t msg_conter = 0;
 
 int mp_cmd(int argc, char **argv)
@@ -545,13 +550,39 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
             len = dev->driver->recv(dev, NULL, 0, 0);
             dev->driver->recv(dev, message, len, &packet_info);
             User* user = malloc(sizeof(User));
-            user->username = malloc(sizeof(char) * 3);
+            user->username = malloc(sizeof(char) * 4);
             strncpy(user->username,message,3);
+            user->username[3] = '\0';
             int index = 0;
             for(size_t i = 3; i < len; i++){
                 if(message[i] == ':'){
                     index = i + 1;
                     break;
+                }
+            }
+            if(message[3] == '@'){
+                if(message[4]=='*'){
+                }
+                else{
+                    char recv_name[4];
+                    strncpy(recv_name,message + 4,3);
+                    recv_name[3] = '\0';
+                    if(strcmp(recv_name,pseudo) != 0){
+                        return;
+                    } 
+                }
+            }else{ 
+                int size = index - 5;
+                char name_channel[size + 1];
+                strncpy(name_channel,message + 4,size);
+                name_channel[size] = '\0';
+                for(int i = 0;i<10;i++){
+                    if(strcmp(name_channel,list_channel[i])==0){
+                        break;
+                    }
+                    if(i == 9){
+                        return;
+                    }
                 }
             }
             int cmp = 0;
@@ -569,16 +600,17 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
                 removeIndex(list_user,i);
                 number_user--;
             }
-            if(number_user == 20){
+            if(number_user == 3){
                 removeLast(list_user);
             }
             addHead(list_user,user);
             number_user++;
-            printf(
-                "{Payload: \"%s\" (%d bytes), RSSI: %i, SNR: %i, TOA: %" PRIu32 "}\n",
-                message, (int)len,
-                packet_info.rssi, (int)packet_info.snr,
-                sx127x_get_time_on_air((const sx127x_t *)dev, len));
+            // printf(
+            //     "{Payload: \"%s\" (%d bytes), RSSI: %i, SNR: %i, TOA: %" PRIu32 "}\n",
+            //     message, (int)len,
+            //     packet_info.rssi, (int)packet_info.snr,
+            //     sx127x_get_time_on_air((const sx127x_t *)dev, len));
+            printf("%s\n",message);
             break;
 
         case NETDEV_EVENT_TX_COMPLETE:
@@ -613,6 +645,7 @@ int test(int argc, char** argv){
             user->username = malloc(sizeof(char) * 4);
             strncpy(user->username,message,3);
             user->username[3] = '\0';
+
             int index = 0;
             for(size_t i = 3; i < len; i++){
                 if(message[i] == ':'){
@@ -631,18 +664,13 @@ int test(int argc, char** argv){
             strncpy(tmp,message + index,cmp);
             user->num = atoi(tmp);
             int i;
-            printf("LOL\n");
             if((i = findElem(list_user,user->username)) != -1){
                 removeIndex(list_user,i);
                 number_user--;
-                printf("CASSECOUILLE\n");
-
             }
-            printf("LOL1\n");
-            if(number_user == 20){
+            if(number_user == 3){
                 removeLast(list_user);
             }
-            printf("LOL2\n");
             addHead(list_user,user);
             number_user++;
             printLinklist(list_user);
@@ -701,10 +729,65 @@ int init_sx1272_cmd(int argc, char **argv)
         puts("5");
 
         list_user = initLinklist((FuncFree)free_user, (FuncCompare)compare_user, (FunPrint)print_user);
+        list_channel = malloc(sizeof(char*) * 10);
+        for(int i = 0;i< 10;i++){
+            list_channel[i] = malloc(sizeof(char)*10);
+            list_channel[i][0] = '\0';
+        }
         return 0;
 }
 
 
+int subscribe_cmd(int argc, char** argv){
+    if(argc < 2){
+        return 1;
+    }
+    char* name_channel = argv[1];
+    int index = -1;
+    for(int i = 0;i<10;i++){
+        if(strcmp(name_channel,list_channel[i])==0){
+            printf("Already sub\n");
+            return 1;
+        }
+        if(list_channel[i][0] == '\0'){
+            index = i;
+        }
+    }
+    if(index == -1){
+        printf("Chanel list full\n");
+        return 1;
+    }
+    strcpy(list_channel[index],name_channel);
+    return 0;
+}
+
+int unsubscribe_cmd(int argc, char** argv){
+    if(argc < 2){
+        return 1;
+    }
+    char* name_channel = argv[1];
+    for(int i = 0;i<10;i++){
+        if(strcmp(name_channel,list_channel[i]) == 0){
+            list_channel[i][0] = '\0';
+            return 0;
+        }
+    }
+    printf("Chanel not found\n");
+    return 1;
+}
+
+int print_channel_cmd(int argc, char** argv){
+    if(argc < 1){
+        return 1;
+    }
+    (void)argv[1];
+    for(int i = 0;i<10;i++){
+        if(strcmp(list_channel[i],"\0") != 0){
+            printf("%s\n",list_channel[i]);
+        }
+    }
+    return 0;
+}
 
 static const shell_command_t shell_commands[] = {
 	{ "init",    "Initialize SX1272",     					init_sx1272_cmd },
@@ -723,6 +806,9 @@ static const shell_command_t shell_commands[] = {
     { "reset",    "Reset the sx127x device",                 reset_cmd },
     { "user_list", "Show user list", print_list_user},
     { "test", "ON SENFOU", test},
+    { "subscribe", "Join a channel" , subscribe_cmd},
+    { "unsubscribe", "Unjoin a channel", unsubscribe_cmd},
+    { "channel_list", "Show all the channel", print_channel_cmd},
     { NULL, NULL, NULL }
 };
 
