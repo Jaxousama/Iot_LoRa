@@ -274,7 +274,7 @@ int register_cmd(int argc, char **argv)
     return 0;
 }
 
-char pseudo[4] = "Jax\0";
+char pseudo[5] = "Jaxu\0";
 uint32_t msg_conter = 0;
 
 int mp_cmd(int argc, char **argv)
@@ -550,31 +550,31 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
             len = dev->driver->recv(dev, NULL, 0, 0);
             dev->driver->recv(dev, message, len, &packet_info);
             User* user = malloc(sizeof(User));
-            user->username = malloc(sizeof(char) * 4);
-            strncpy(user->username,message,3);
-            user->username[3] = '\0';
+            user->username = malloc(sizeof(char) * 5);
+            strncpy(user->username,message,4);
+            user->username[4] = '\0';
             int index = 0;
-            for(size_t i = 3; i < len; i++){
+            for(size_t i = 4; i < len; i++){
                 if(message[i] == ':'){
                     index = i + 1;
                     break;
                 }
             }
-            if(message[3] == '@'){
-                if(message[4]=='*'){
+            if(message[4] == '@'){
+                if(message[5]=='*'){
                 }
                 else{
-                    char recv_name[4];
-                    strncpy(recv_name,message + 4,3);
-                    recv_name[3] = '\0';
+                    char recv_name[5];
+                    strncpy(recv_name,message + 5,4);
+                    recv_name[4] = '\0';
                     if(strcmp(recv_name,pseudo) != 0){
                         return;
                     } 
                 }
             }else{ 
-                int size = index - 5;
+                int size = index - 6;
                 char name_channel[size + 1];
-                strncpy(name_channel,message + 4,size);
+                strncpy(name_channel,message + 5,size);
                 name_channel[size] = '\0';
                 for(int i = 0;i<10;i++){
                     if(strcmp(name_channel,list_channel[i])==0){
