@@ -50,6 +50,9 @@
 #endif
 
 #define MSG_TYPE_ISR            (0x3456)
+#define  MAX_USER_NAME 4
+#define MAX_USER 20
+#define MAX_CHANNEL 10
 
 static char stack[SX127X_STACKSIZE];
 static kernel_pid_t _recv_pid;
@@ -550,23 +553,23 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
             len = dev->driver->recv(dev, NULL, 0, 0);
             dev->driver->recv(dev, message, len, &packet_info);
             User* user = malloc(sizeof(User));
-            user->username = malloc(sizeof(char) * 5);
-            strncpy(user->username,message,4);
-            user->username[4] = '\0';
+            user->username = malloc(sizeof(char) * MAX_USER_NAME + 1);
+            strncpy(user->username,message,MAX_USER_NAME);
+            user->username[MAX_USER_NAME] = '\0';
             int index = 0;
-            for(size_t i = 4; i < len; i++){
+            for(size_t i = MAX_USER_NAME; i < len; i++){
                 if(message[i] == ':'){
                     index = i + 1;
                     break;
                 }
             }
-            if(message[4] == '@'){
-                if(message[5]=='*'){
+            if(message[MAX_USER_NAME] == '@'){
+                if(message[MAX_USER_NAME + 1]=='*'){
                 }
                 else{
-                    char recv_name[5];
-                    strncpy(recv_name,message + 5,4);
-                    recv_name[4] = '\0';
+                    char recv_name[MAX_USER_NAME + 1];
+                    strncpy(recv_name,message + MAX_USER_NAME + 1 ,MAX_USER_NAME);
+                    recv_name[MAX_USER_NAME] = '\0';
                     if(strcmp(recv_name,pseudo) != 0){
                         return;
                     } 
@@ -576,11 +579,11 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
                 char name_channel[size + 1];
                 strncpy(name_channel,message + 5,size);
                 name_channel[size] = '\0';
-                for(int i = 0;i<10;i++){
+                for(int i = 0;i<MAX_CHANNEL;i++){
                     if(strcmp(name_channel,list_channel[i])==0){
                         break;
                     }
-                    if(i == 9){
+                    if(i == MAX_CHANNEL - 1){
                         return;
                     }
                 }
@@ -632,50 +635,6 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
     }
 }
 
-int test(int argc, char** argv){
-    if(argc < 1){
-        return 0;
-    }
-            char* message = argv[1];
-            size_t len = 0;
-            while(argv[1][len] != '\0'){
-                len++;
-            }
-            User* user = malloc(sizeof(User));
-            user->username = malloc(sizeof(char) * 4);
-            strncpy(user->username,message,3);
-            user->username[3] = '\0';
-
-            int index = 0;
-            for(size_t i = 3; i < len; i++){
-                if(message[i] == ':'){
-                    index = i + 1;
-                    break;
-                }
-            }
-            int cmp = 0;
-            for(size_t i = index; i < len; i++){
-                if(message[i] == ':'){
-                    break;
-                }
-                cmp++;
-            }
-            char* tmp = malloc(sizeof(char) * cmp);
-            strncpy(tmp,message + index,cmp);
-            user->num = atoi(tmp);
-            int i;
-            if((i = findElem(list_user,user->username)) != -1){
-                removeIndex(list_user,i);
-                number_user--;
-            }
-            if(number_user == 3){
-                removeLast(list_user);
-            }
-            addHead(list_user,user);
-            number_user++;
-            printLinklist(list_user);
-            return 0;
-}
 
 void *_recv_thread(void *arg)
 {
@@ -744,7 +703,7 @@ int subscribe_cmd(int argc, char** argv){
     }
     char* name_channel = argv[1];
     int index = -1;
-    for(int i = 0;i<10;i++){
+    for(int i = 0;i<MAX_CHANNEL;i++){
         if(strcmp(name_channel,list_channel[i])==0){
             printf("Already sub\n");
             return 1;
@@ -766,7 +725,7 @@ int unsubscribe_cmd(int argc, char** argv){
         return 1;
     }
     char* name_channel = argv[1];
-    for(int i = 0;i<10;i++){
+    for(int i = 0;i<MAX_CHANNEL;i++){
         if(strcmp(name_channel,list_channel[i]) == 0){
             list_channel[i][0] = '\0';
             return 0;
@@ -781,7 +740,7 @@ int print_channel_cmd(int argc, char** argv){
         return 1;
     }
     (void)argv[1];
-    for(int i = 0;i<10;i++){
+    for(int i = 0;i<MAX_CHANNEL;i++){
         if(strcmp(list_channel[i],"\0") != 0){
             printf("%s\n",list_channel[i]);
         }
@@ -805,7 +764,6 @@ static const shell_command_t shell_commands[] = {
     { "listen",   "Start raw payload listener",              listen_cmd },
     { "reset",    "Reset the sx127x device",                 reset_cmd },
     { "user_list", "Show user list", print_list_user},
-    { "test", "ON SENFOU", test},
     { "subscribe", "Join a channel" , subscribe_cmd},
     { "unsubscribe", "Unjoin a channel", unsubscribe_cmd},
     { "channel_list", "Show all the channel", print_channel_cmd},
