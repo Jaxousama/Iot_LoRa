@@ -57,12 +57,35 @@ static kernel_pid_t _recv_pid;
 static char message[32];
 static sx127x_t sx127x;
 
+static uint8_t number_user = 0;  
+
 static List* list_user;
 
 typedef struct user_info{
-    int count;
+    int num;
     char* username;
-}User
+}User;
+
+
+int compare_user(User* user1,char* user2){
+
+    if (strcmp(user1->username , user2) == 0){
+        return 1;
+    }
+    return 0;
+}
+
+void print_user(User* user){
+    printf("name : %s, num : %d\n",user->username,user->num);
+}
+
+void print_list_user(){
+    printLinklist(list_user);
+}
+
+int free_user(User* user){
+    free(user->username);
+}
 
 
 int lora_setup_cmd(int argc, char **argv)
@@ -521,6 +544,36 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
         case NETDEV_EVENT_RX_COMPLETE:
             len = dev->driver->recv(dev, NULL, 0, 0);
             dev->driver->recv(dev, message, len, &packet_info);
+            User* user = malloc(sizeof(User));
+            user->username = malloc(sizeof(char) * 3);
+            strncpy(user->username,message,3);
+            int index = 0;
+            for(size_t i = 3; i < len; i++){
+                if(message[i] == ':'){
+                    index = i + 1;
+                    break;
+                }
+            }
+            int cmp = 0;
+            for(size_t i = index; i < len; i++){
+                if(message[i] == ':'){
+                    break;
+                }
+                cmp++;
+            }
+            char* tmp = malloc(sizeof(char) * cmp);
+            strncpy(tmp,message + index,cmp);
+            user->num = atoi(tmp);
+            int i;
+            if((i = findElem(list_user,user->username)) != -1){
+                removeIndex(list_user,i);
+                number_user--;
+            }
+            if(number_user == 20){
+                removeLast(list_user);
+            }
+            addHead(list_user,user);
+            number_user++;
             printf(
                 "{Payload: \"%s\" (%d bytes), RSSI: %i, SNR: %i, TOA: %" PRIu32 "}\n",
                 message, (int)len,
@@ -545,6 +598,55 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
             break;
         }
     }
+}
+
+int test(int argc, char** argv){
+    if(argc < 1){
+        return 0;
+    }
+            char* message = argv[1];
+            size_t len = 0;
+            while(argv[1][len] != '\0'){
+                len++;
+            }
+            User* user = malloc(sizeof(User));
+            user->username = malloc(sizeof(char) * 4);
+            strncpy(user->username,message,3);
+            user->username[3] = '\0';
+            int index = 0;
+            for(size_t i = 3; i < len; i++){
+                if(message[i] == ':'){
+                    index = i + 1;
+                    break;
+                }
+            }
+            int cmp = 0;
+            for(size_t i = index; i < len; i++){
+                if(message[i] == ':'){
+                    break;
+                }
+                cmp++;
+            }
+            char* tmp = malloc(sizeof(char) * cmp);
+            strncpy(tmp,message + index,cmp);
+            user->num = atoi(tmp);
+            int i;
+            printf("LOL\n");
+            if((i = findElem(list_user,user->username)) != -1){
+                removeIndex(list_user,i);
+                number_user--;
+                printf("CASSECOUILLE\n");
+
+            }
+            printf("LOL1\n");
+            if(number_user == 20){
+                removeLast(list_user);
+            }
+            printf("LOL2\n");
+            addHead(list_user,user);
+            number_user++;
+            printLinklist(list_user);
+            return 0;
 }
 
 void *_recv_thread(void *arg)
@@ -598,22 +700,11 @@ int init_sx1272_cmd(int argc, char **argv)
 	    }
         puts("5");
 
-        list_user = initLinklist(NULL, compare_user, NULL);
-        User* username = malloc(sizeof(user_info));
-        username->count = 0;
-        username->username = "Jax"
-        addHead(list_user,initCell())
+        list_user = initLinklist((FuncFree)free_user, (FuncCompare)compare_user, (FunPrint)print_user);
         return 0;
 }
 
-int compare_user(char* user1,char* user2){
 
-    if (strcmp(user , user2)){
-        return 1;
-    }
-
-    return 0;
-}
 
 static const shell_command_t shell_commands[] = {
 	{ "init",    "Initialize SX1272",     					init_sx1272_cmd },
@@ -630,6 +721,8 @@ static const shell_command_t shell_commands[] = {
     { "mp",      "Send raw payload string in a user",        mp_cmd },    
     { "listen",   "Start raw payload listener",              listen_cmd },
     { "reset",    "Reset the sx127x device",                 reset_cmd },
+    { "user_list", "Show user list", print_list_user},
+    { "test", "ON SENFOU", test},
     { NULL, NULL, NULL }
 };
 

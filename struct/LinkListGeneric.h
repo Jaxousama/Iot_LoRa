@@ -45,4 +45,6 @@ int findElem(List* l,void* data);
 
 Cell* returnElem(List* l,void* data);
 
+int lenList(List* l);
+
 #endif

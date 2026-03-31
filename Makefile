@@ -23,6 +23,9 @@ DRIVER ?= sx1272
 # use SX1276 by default
 USEMODULE += $(DRIVER)
 
+SRC += main.c
+SRC += struct/LinkListGeneric.c
+
 # Fix the problem of the size of the debugging files
 CFLAGS_DBG = 
 

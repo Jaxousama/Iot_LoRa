@@ -189,7 +189,7 @@ index -> the index of the data
 
 int findElem(List* l,void* data){
     if(isEmptyLinklist(l)){
-        return 0;
+        return -1;
     }
     if(data == NULL){
         return -2;
@@ -197,7 +197,7 @@ int findElem(List* l,void* data){
     
     Cell* current = l->head;
     int index = 0;
-    while(!(l->cmpfunc(current->data,data))){
+    while((l->cmpfunc(current->data,data) == 0)){
         current = current->next;
         if(current==NULL){
             return -1;
@@ -208,13 +208,14 @@ int findElem(List* l,void* data){
     return index;
 }
 
+
 Cell* returnElem(List* l,void* data){
 
     if(isEmptyLinklist(l)){
-        return 0;
+        return NULL;
     }
     if(data == NULL){
-        return -2;
+        return NULL;
     }
     
     Cell* current = l->head;
@@ -230,6 +231,23 @@ Cell* returnElem(List* l,void* data){
     return current;    
 }
 
+
+int lenList(List* l){
+
+    if(isEmptyLinklist(l)){
+        return 0;
+    }
+
+    int cmp = 1;
+
+    Cell* current = l->head;
+    while(current->next != NULL){
+        cmp++;
+    }
+    
+    return cmp;
+
+}
 
 
 
