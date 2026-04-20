@@ -599,6 +599,36 @@ int payload_cmd(int argc, char **argv)
     return 0;
 }
 
+void lora_meche_renvois(char* message){
+    int index = 0;
+    while (message[index] != ':') {//on cherche le debut du numero
+        index++;
+    }
+    index++;
+    while(message[index] != ',' ){//on cherche la fin du numero et le debut du ttl
+        index++;
+    }
+    index++;
+    int cmp = 0;
+    while(message[index + cmp] != ':'){//on cherche la fin du ttl et le debut du message
+        cmp++;
+    }
+    char* tmp = malloc(sizeof(char) * cmp);
+    strncpy(tmp,message + index,cmp);
+    int ttl = atoi(tmp);
+    free(tmp);
+    if(ttl > 0){
+        ttl--;
+        char ttl_char[11];
+        sprintf(ttl_char,"%d",ttl);
+        char new_message[32];
+        strncpy(new_message,message,index);
+        strncpy(new_message + index, ttl_char, strlen(ttl_char));
+        strncpy(new_message + index + strlen(ttl_char), message + index + cmp, 32 - index - cmp);
+        printf("new message : %s\n",new_message); //la on le renvois
+    }
+}
+
 
 
 static void _event_cb(netdev_t *dev, netdev_event_t event)
@@ -668,11 +698,15 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
                 if(message[i] == ':'){
                     break;
                 }
+                if(message[i] == ','){
+                    break;
+                }
                 cmp++;
             }
             char* tmp = malloc(sizeof(char) * cmp);
             strncpy(tmp,message + index,cmp);
             user->num = atoi(tmp);
+            free(tmp);
             int i;
             if((i = findElem(list_user,user->username)) != -1){
                 removeIndex(list_user,i);
@@ -842,6 +876,7 @@ int test_msg_cmd(int argc, char** argv){
             if(!isInFifo(fifo_msg,message)){
                 pushFifo(fifo_msg, message);
             }
+            lora_meche_renvois(message);
             User* user = malloc(sizeof(User));
             user->username = malloc(sizeof(char) * MAX_USER_NAME + 1);
             strncpy(user->username,message,MAX_USER_NAME);
@@ -912,7 +947,7 @@ int threshold_cmd(int argc, char** argv){
         return 1;
     }
 
-    SNR_threshold = argv[1];
+    SNR_threshold = (int)argv[1];
     return 0;
     
 }
@@ -938,6 +973,7 @@ static const shell_command_t shell_commands[] = {
     { "channel_list", "Show all the channel", print_channel_cmd},
     { "msg_list", "Show all the message in the fifo",        printFifo_cmd},
     { "threshold", "Change SNR threshold", threshold_cmd},
+    { "test_msg", "Test the message treatment", test_msg_cmd},
     { NULL, NULL, NULL }
 };
 
