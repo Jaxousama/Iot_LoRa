@@ -607,6 +607,9 @@ void lora_meche_renvois(char* message){
     index++;
     while(message[index] != ',' ){//on cherche la fin du numero et le debut du ttl
         index++;
+        if(message[index] == ':'){
+            return;
+        }
     }
     index++;
     int cmp = 0;
