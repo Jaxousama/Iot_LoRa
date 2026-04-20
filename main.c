@@ -287,8 +287,40 @@ int mp_cmd(int argc, char **argv)
         return -1;
     }
 
-    char* msg = malloc(strlen(argv[2]) + strlen(pseudo) + strlen(argv[1]) + 10);  
-    sprintf(msg, "%s@%s:%lu:%s", pseudo, argv[1], msg_conter++, argv[2]);
+    size_t payload_len = 0;
+    for (int i = 2; i < argc; i++) {
+        payload_len += strlen(argv[i]);
+        if (i < (argc - 1)) {
+            payload_len++;
+        }
+    }
+
+    char *msg_content = malloc(payload_len + 1);
+    if (msg_content == NULL) {
+        puts("no memory");
+        return -1;
+    }
+
+    size_t tmp_size = 0;
+    for (int i = 2; i < argc; i++) {
+        size_t arg_len = strlen(argv[i]);
+        memcpy(msg_content + tmp_size, argv[i], arg_len);
+        tmp_size += arg_len;
+        if (i < (argc - 1)) {
+            msg_content[tmp_size++] = ' ';
+        }
+    }
+    msg_content[tmp_size] = '\0';
+
+    size_t size_msg = strlen(pseudo) + strlen(argv[1]) + payload_len + 10;
+    char *msg = malloc(size_msg);
+    if (msg == NULL) {
+        free(msg_content);
+        puts("no memory");
+        return -1;
+    }
+
+    sprintf(msg, "%s#%s:%lu:%s", pseudo, argv[1], msg_conter++, msg_content);
     printf("sending \"%s\" payload (%u bytes)\n",
            msg, (unsigned)strlen(msg) + 1);
     iolist_t iolist = {
@@ -302,6 +334,7 @@ int mp_cmd(int argc, char **argv)
         puts("Cannot send: radio is still transmitting");
     }
     free(msg);
+    free(msg_content);
 
     return 0;
 }
@@ -313,8 +346,40 @@ int send_cmd(int argc, char **argv)
         return -1;
     }
 
-    char* msg = malloc(strlen(argv[2]) + strlen(pseudo) + strlen(argv[1]) + 10);  
-    sprintf(msg, "%s#%s:%lu:%s", pseudo, argv[1], msg_conter++, argv[2]);
+    size_t payload_len = 0;
+    for (int i = 2; i < argc; i++) {
+        payload_len += strlen(argv[i]);
+        if (i < (argc - 1)) {
+            payload_len++;
+        }
+    }
+
+    char *msg_content = malloc(payload_len + 1);
+    if (msg_content == NULL) {
+        puts("no memory");
+        return -1;
+    }
+
+    size_t tmp_size = 0;
+    for (int i = 2; i < argc; i++) {
+        size_t arg_len = strlen(argv[i]);
+        memcpy(msg_content + tmp_size, argv[i], arg_len);
+        tmp_size += arg_len;
+        if (i < (argc - 1)) {
+            msg_content[tmp_size++] = ' ';
+        }
+    }
+    msg_content[tmp_size] = '\0';
+
+    size_t size_msg = strlen(pseudo) + strlen(argv[1]) + payload_len + 10;
+    char *msg = malloc(size_msg);
+    if (msg == NULL) {
+        free(msg_content);
+        puts("no memory");
+        return -1;
+    }
+
+    sprintf(msg, "%s#%s:%lu:%s", pseudo, argv[1], msg_conter++, msg_content);
     printf("sending \"%s\" payload (%u bytes)\n",
            msg, (unsigned)strlen(msg) + 1);
     iolist_t iolist = {
@@ -328,6 +393,8 @@ int send_cmd(int argc, char **argv)
         puts("Cannot send: radio is still transmitting");
     }
     free(msg);
+    free(msg_content);
+
 
     return 0;
 }
