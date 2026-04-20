@@ -1085,6 +1085,7 @@ int pseudo_change_cmd(int argc, char** argv){
     }
 
     strncpy(pseudo,argv[1],4);
+    return 0;
 
 }
 
