@@ -3,6 +3,7 @@
 
 #define MAX_FIFO_SIZE 10
 
+// etats pour le renvoi d'un message
 typedef enum resend_stat {
     RESEND_OK,
     RESEND_NOT_OK,
@@ -10,10 +11,10 @@ typedef enum resend_stat {
 } resend_stat_t;
 
 typedef struct fifo{
-    char data[MAX_FIFO_SIZE][32];
+    char data[MAX_FIFO_SIZE][32];   // tableau des message recu
     int head;
     int tail;
-    resend_stat_t resend_stat[MAX_FIFO_SIZE];
+    resend_stat_t resend_stat[MAX_FIFO_SIZE];   // etats du message
 }Fifo;
 
 

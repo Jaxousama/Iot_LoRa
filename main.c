@@ -31,7 +31,6 @@
 
 #include "thread.h"
 #include "shell.h"
-//#include "shell_commands.h"
 #include "event/deferred_callback.h"
 #include "event/thread.h"
 
@@ -52,13 +51,15 @@
 #define SX127X_STACKSIZE        (THREAD_STACKSIZE_DEFAULT)
 #endif
 
+                            // definition des varibale globale
+
 #define MSG_TYPE_ISR            (0x3456)
-#define  MAX_USER_NAME 4
-#define MAX_USER 20
-#define MAX_CHANNEL 10
-#define TTL 3
-#define RELAY_DELAY_MS 5000U
-#define RELAY_JOB_SLOTS 4
+#define  MAX_USER_NAME 4    // taille max du nom d'utilisateur
+#define MAX_USER 20         // nombre max d'utilisateur dans la liste des utilisateurs connus
+#define MAX_CHANNEL 10      // nombre max de channel dans la liste des channel connu
+#define TTL 3               // nombre de fois que le message doit etre renvoyer
+#define RELAY_DELAY_MS 5000U// delai avant de renvoyer un message
+#define RELAY_JOB_SLOTS 4   // nombre de message pouvant etre en attente de renvoi
 
 static char stack[SX127X_STACKSIZE];
 static kernel_pid_t _recv_pid;
@@ -66,15 +67,21 @@ static kernel_pid_t _recv_pid;
 static char message[32];
 static sx127x_t sx127x;
 
-static uint8_t number_user = 0;
+static uint8_t number_user = 0; // nombre d'utilisateur dans la liste des utilisateurs connus
 
-static int SNR_threshold = 50;
+static int SNR_threshold = 50;  
 
-static List* list_user;
+static List* list_user;     // liste des utilisateurs connus
 
-static char** list_channel;
-static Fifo* fifo_msg;
+static char** list_channel; // liste des channel connus
+static Fifo* fifo_msg;  // fifo des message deja vu pour eviter de les traiter plusieurs fois et de les renvoyer a l'infini
 
+char pseudo[5] = "Jaxu\0";  // pseudo du client
+uint32_t msg_conter = 0;    // compteur des message envoyer
+
+                            // definition des structure
+
+// definition de la structure d'une tache de renvoi
 typedef struct {
     event_deferred_callback_t deferred;
     char message[32];
@@ -83,12 +90,15 @@ typedef struct {
 
 static relay_job_t relay_jobs[RELAY_JOB_SLOTS];
 
+// definition de la structure d'un utilisateur avec son nom et son numero de sequence du message le plus recent qu'il a envoye
 typedef struct user_info{
     int num;
     char* username;
 }User;
 
+                            // fonction de traitement des utilisateurs
 
+// fonction de comparaison de deux utilisateur pour la liste des utilisateurs connus
 int compare_user(User* user1,char* user2){
 
     if (strcmp(user1->username , user2) == 0){
@@ -97,10 +107,12 @@ int compare_user(User* user1,char* user2){
     return 0;
 }
 
+// fonction d'affichage d'un utilisateur pour la liste des utilisateurs connus
 void print_user(User* user){
     printf("name : %s, num : %d\n",user->username,user->num);
 }
 
+// fonction d'affichage de la liste des utilisateurs connus
 int print_list_user(int argc, char** argv){
     (void)argc;
     (void)argv;
@@ -108,11 +120,12 @@ int print_list_user(int argc, char** argv){
     return 1;
 }
 
+// libere la memoire allouee pour un utilisateur
 void free_user(User* user){
     free(user->username);
 }
 
-
+                            // fonction fournisse pour la configuration
 int lora_setup_cmd(int argc, char **argv)
 {
 
@@ -294,9 +307,9 @@ int register_cmd(int argc, char **argv)
     return 0;
 }
 
-char pseudo[5] = "Jaxu\0";
-uint32_t msg_conter = 0;
+                            // fonction d'envois de message
 
+// envois d'un message priver, '*' si destiner a tous
 int mp_cmd(int argc, char **argv)
 {
     if (argc <= 2) {
@@ -304,6 +317,7 @@ int mp_cmd(int argc, char **argv)
         return -1;
     }
 
+    // calcul de la taille effective du message a envoyer en concatenant les arguments de la commande
     size_t payload_len = 0;
     for (int i = 2; i < argc; i++) {
         payload_len += strlen(argv[i]);
@@ -312,12 +326,14 @@ int mp_cmd(int argc, char **argv)
         }
     }
 
+    // alloue de la memoire pour le message a envoyer et le construit en concatenant les arguments de la commande
     char *msg_content = malloc(payload_len + 1);
     if (msg_content == NULL) {
         puts("no memory");
         return -1;
     }
 
+    // construit le message en concatenant les arguments de la commande
     size_t tmp_size = 0;
     for (int i = 2; i < argc; i++) {
         size_t arg_len = strlen(argv[i]);
@@ -329,6 +345,7 @@ int mp_cmd(int argc, char **argv)
     }
     msg_content[tmp_size] = '\0';
 
+    // calcule la taille total du message et l'alloue en memoire
     size_t size_msg = strlen(pseudo) + strlen(argv[1]) + payload_len + sizeof(TTL) + 10;
     char *msg = malloc(size_msg);
     if (msg == NULL) {
@@ -337,9 +354,12 @@ int mp_cmd(int argc, char **argv)
         return -1;
     }
 
-    sprintf(msg, "%s#%s:%lu,%u:%s", pseudo, argv[1], msg_conter++, TTL, msg_content);
+    // cree le message a la forme "pseudo@target:num,ttl:message"
+    sprintf(msg, "%s@%s:%lu,%u:%s", pseudo, argv[1], msg_conter++, TTL, msg_content);
     printf("sending \"%s\" payload (%u bytes)\n",
            msg, (unsigned)strlen(msg) + 1);
+
+    // envois le message
     iolist_t iolist = {
         .iol_base = msg,
         .iol_len = (strlen(msg) + 1)
@@ -356,6 +376,7 @@ int mp_cmd(int argc, char **argv)
     return 0;
 }
 
+// envois d'un message dans un channel
 int send_cmd(int argc, char **argv)
 {
     if (argc <= 2) {
@@ -363,6 +384,7 @@ int send_cmd(int argc, char **argv)
         return -1;
     }
 
+    // calcul de la taille effective du message a envoyer en concatenant les arguments de la commande
     size_t payload_len = 0;
     for (int i = 2; i < argc; i++) {
         payload_len += strlen(argv[i]);
@@ -371,12 +393,14 @@ int send_cmd(int argc, char **argv)
         }
     }
 
+    // alloue de la memoire pour le message a envoyer et le construit en concatenant les arguments de la commande
     char *msg_content = malloc(payload_len + 1);
     if (msg_content == NULL) {
         puts("no memory");
         return -1;
     }
 
+    // construit le message en concatenant les arguments de la commande
     size_t tmp_size = 0;
     for (int i = 2; i < argc; i++) {
         size_t arg_len = strlen(argv[i]);
@@ -388,6 +412,7 @@ int send_cmd(int argc, char **argv)
     }
     msg_content[tmp_size] = '\0';
 
+    // calcule la taille total du message et l'alloue en memoire
     size_t size_msg = strlen(pseudo) + strlen(argv[1]) + payload_len + sizeof(TTL) + 10;
     char *msg = malloc(size_msg);
     if (msg == NULL) {
@@ -396,9 +421,12 @@ int send_cmd(int argc, char **argv)
         return -1;
     }
 
+    // cree le message a la forme "pseudo#target:num,ttl:message"
     sprintf(msg, "%s#%s:%lu,%u:%s", pseudo, argv[1], msg_conter++, TTL, msg_content);
     printf("sending \"%s\" payload (%u bytes)\n",
            msg, (unsigned)strlen(msg) + 1);
+
+    // envois le message
     iolist_t iolist = {
         .iol_base = msg,
         .iol_len = (strlen(msg) + 1)
@@ -416,6 +444,7 @@ int send_cmd(int argc, char **argv)
     return 0;
 }
 
+                            // fonction fournisse initialement
 int listen_cmd(int argc, char **argv)
 {
     (void)argc;
@@ -610,12 +639,16 @@ int payload_cmd(int argc, char **argv)
     printf("Successfully set payload to %i\n", tmp);
     return 0;
 }
+                            // fonction de renvoi de message
 
+// fonction de callback pour le renvoi d'un message
 static void _relay_send_cb(void *arg)
 {
+    // recupere le message a renvoyer et le netdev pour l'envois
     relay_job_t *job = (relay_job_t *)arg;
     netdev_t *netdev = &sx127x.netdev;
 
+    //envois le message
     iolist_t iolist = {
         .iol_base = job->message,
         .iol_len = (strlen(job->message) + 1)
@@ -627,12 +660,13 @@ static void _relay_send_cb(void *arg)
     else {
         printf("renvois \"%s\" payload (%u bytes)\n",
                job->message, (unsigned)strlen(job->message) + 1);
-        changeResendStat(fifo_msg, job->message, RESEND_OK);
+        changeResendStat(fifo_msg, job->message, RESEND_OK);    // met a jour le statut du message dans la fifo pour eviter de le renvoyer a nouveau si on le recois a nouveau
     }
 
     job->busy = false;
 }
 
+// planifie le renvoi d'un message apres un delai
 static void _schedule_relay_send(const char *msg, uint32_t delay_ms)
 {
     for (size_t i = 0; i < RELAY_JOB_SLOTS; i++) {
@@ -654,10 +688,12 @@ static void _schedule_relay_send(const char *msg, uint32_t delay_ms)
     puts("Relay queue full: drop message");
 }
 
+//fonction qui decide si un message doit etre renvoyer ou pas en fonction de son SNR et de son TTL et qui planifie son renvoi si besoin
 void lora_mesh_renvois(char* message,int SNR){
-    if(SNR > SNR_threshold){
+    if(SNR > SNR_threshold){    // si le message est de bonne qualite, on ne le renvoie pas (il vien du'une carte proche)
         return;
     }
+    //cherche le ttl dans le message
     int index = 0;
     while (message[index] != ':') {//on cherche le debut du numero
         index++;
@@ -674,11 +710,14 @@ void lora_mesh_renvois(char* message,int SNR){
     while(message[index + cmp] != ':'){//on cherche la fin du ttl et le debut du message
         cmp++;
     }
+    // recupere le ttl 
     char* tmp = malloc(sizeof(char) * cmp);
     strncpy(tmp,message + index,cmp);
     int ttl = atoi(tmp);
     free(tmp);
-    if(ttl > 0){
+
+    if(ttl > 0){    // si le ttl > 0 alors on planifie le renvoi du message en decrementant le ttl de 1 dans le message
+        //on construit un nouveau message qui a un ttl de 1 de moins que le message recu
         ttl--;
         char ttl_char[11];
         sprintf(ttl_char,"%d",ttl);
@@ -687,12 +726,11 @@ void lora_mesh_renvois(char* message,int SNR){
         strncpy(new_message + index, ttl_char, strlen(ttl_char));
         strncpy(new_message + index + strlen(ttl_char), message + index + cmp, 32 - index - cmp);
         changeResendStat(fifo_msg,message,RESEND_DELAYED);
-        _schedule_relay_send(new_message, RELAY_DELAY_MS);
+        _schedule_relay_send(new_message, RELAY_DELAY_MS);// planifie le renvoi du message avec le ttl decremente de 1 apres un delai de RELAY_DELAY_MS
     }
 }
 
-
-
+// fonction de callback pour les evenement du netdev, elle traite les evenement de reception de message et de fin d'emission de message
 static void _event_cb(netdev_t *dev, netdev_event_t event)
 {
     if (event == NETDEV_EVENT_ISR) {
@@ -716,10 +754,15 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
         case NETDEV_EVENT_RX_COMPLETE:
             len = dev->driver->recv(dev, NULL, 0, 0);
             dev->driver->recv(dev, message, len, &packet_info);
+
+            // verfifie si le message na pas deja etais recu
             if(!isInFifo(fifo_msg,message)){
                 pushFifo(fifo_msg, message);
-                lora_mesh_renvois(message,(int)packet_info.snr);
+                lora_mesh_renvois(message,(int)packet_info.snr);    // decide si le message doit etre renvoyer
             }
+
+            // debut du traitement du message
+            //cree un utilisateur et recupere sont pseudo dans le message
             User* user = malloc(sizeof(User));
             user->username = malloc(sizeof(char) * MAX_USER_NAME + 1);
             strncpy(user->username,message,MAX_USER_NAME);
@@ -731,23 +774,27 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
                     break;
                 }
             }
-            if(message[MAX_USER_NAME] == '@'){
-                if(message[MAX_USER_NAME + 1]=='*'){
+
+            // verifie si le message est un message priver ou un message de channel
+            if(message[MAX_USER_NAME] == '@'){  // message pour un utilisateur
+                if(message[MAX_USER_NAME + 1]=='*'){    // message pour tous les utilisateur, on ne verifie pas le pseudo du destinataire
                 }
                 else{
+                    // verfie si le message nous est destiner
                     char recv_name[MAX_USER_NAME + 1];
                     strncpy(recv_name,message + MAX_USER_NAME + 1 ,MAX_USER_NAME);
                     recv_name[MAX_USER_NAME] = '\0';
-                    if(strcmp(recv_name,pseudo) != 0){
+                    if(strcmp(recv_name,pseudo) != 0){  // si il ne nous est pas destiner, on ne le traite pas
                         return;
                     } 
                 }
-            }else{
+            }else{  // message pour un channel
+                // recupere le nom du channel dans le message
                 int size = index - 6;
                 char name_channel[size + 1];
                 strncpy(name_channel,message + 5,size);
                 name_channel[size] = '\0';
-                for(int i = 0;i<MAX_CHANNEL;i++){
+                for(int i = 0;i<MAX_CHANNEL;i++){   // verifie si on est abonner a ce channel, si on ne l'est pas, on ne traite pas le message
                     if(strcmp(name_channel,list_channel[i])==0){
                         break;
                     }
@@ -756,6 +803,8 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
                     }
                 }
             }
+
+            // recupere le numero du message
             int cmp = 0;
             for(size_t i = index; i < len; i++){
                 if(message[i] == ':'){
@@ -771,11 +820,12 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
             user->num = atoi(tmp);
             free(tmp);
             int i;
-            if((i = findElem(list_user,user->username)) != -1){
+            // on verifie si l'utilisateur qui a envoye le message est deja dans la liste des utilisateur connu
+            if((i = findElem(list_user,user->username)) != -1){ // si on le conais deja on le reinsert en tete pour qu'on enleve le plus ancien si la liste est pleine
                 removeIndex(list_user,i);
                 number_user--;
             }
-            if(number_user == 3){
+            if(number_user == 3){   // cas de la liste pleine
                 removeLast(list_user);
             }
             addHead(list_user,user);
@@ -807,6 +857,7 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
     }
 }
 
+                            // fonction fournisse
 
 void *_recv_thread(void *arg)
 {
@@ -870,14 +921,17 @@ int init_sx1272_cmd(int argc, char **argv)
         return 0;
 }
 
+                            // fonction de la gestion des channel
 
+// abonnement a un channel, on ajoute le nom du channel a la liste des channel auquel on est abonner
 int subscribe_cmd(int argc, char** argv){
     if(argc < 2){
         return 1;
     }
+    //recupere le nom du channel a abonner
     char* name_channel = argv[1];
     int index = -1;
-    for(int i = 0;i<MAX_CHANNEL;i++){
+    for(int i = 0;i<MAX_CHANNEL;i++){   // verifie si on est deja abonner a ce channel
         if(strcmp(name_channel,list_channel[i])==0){
             printf("Already sub\n");
             return 1;
@@ -886,22 +940,24 @@ int subscribe_cmd(int argc, char** argv){
             index = i;
         }
     }
-    if(index == -1){
+    if(index == -1){    // cas de la liste pleine
         printf("Chanel list full\n");
         return 1;
     }
-    strcpy(list_channel[index],name_channel);
+    strcpy(list_channel[index],name_channel);   // insert le nom du channel dans la liste des channel auquel on est abonner
     return 0;
 }
 
+// desabonnement d'un channel, on supprime le nom du channel de la liste des channel auquel on est abonner
 int unsubscribe_cmd(int argc, char** argv){
     if(argc < 2){
         return 1;
     }
+    // recupere le nom du channel a desabonner
     char* name_channel = argv[1];
     for(int i = 0;i<MAX_CHANNEL;i++){
         if(strcmp(name_channel,list_channel[i]) == 0){
-            list_channel[i][0] = '\0';
+            list_channel[i][0] = '\0';  // supprime le nom du channel de la liste des channel auquel on est abonner en mettant le premier caractere a '\0'
             return 0;
         }
     }
@@ -909,6 +965,7 @@ int unsubscribe_cmd(int argc, char** argv){
     return 1;
 }
 
+// affiche la liste des channel auquel on est abonner
 int print_channel_cmd(int argc, char** argv){
     if(argc < 1){
         return 1;
@@ -922,6 +979,7 @@ int print_channel_cmd(int argc, char** argv){
     return 0;
 }
 
+// affiche la liste des message
 int printFifo_cmd(int argc, char** argv){
     if(argc < 1){
         return 1;
@@ -931,6 +989,7 @@ int printFifo_cmd(int argc, char** argv){
     return 0;
 }
 
+// fonction de test car on a pas d'ami
 int test_msg_cmd(int argc, char** argv){
     (void)argc;
     size_t len = (size_t)strlen(argv[1]) + 1;
@@ -1030,13 +1089,13 @@ static const shell_command_t shell_commands[] = {
     { "mp",      "Send raw payload string in a user",        mp_cmd },    
     { "listen",   "Start raw payload listener",              listen_cmd },
     { "reset",    "Reset the sx127x device",                 reset_cmd },
-    { "user_list", "Show user list", print_list_user},
-    { "subscribe", "Join a channel" , subscribe_cmd},
-    { "unsubscribe", "Unjoin a channel", unsubscribe_cmd},
-    { "channel_list", "Show all the channel", print_channel_cmd},
+    { "user_list", "Show user list",                         print_list_user},
+    { "subscribe", "Join a channel" ,                        subscribe_cmd},
+    { "unsubscribe", "Unjoin a channel",                     unsubscribe_cmd},
+    { "channel_list", "Show all the channel",                print_channel_cmd},
     { "msg_list", "Show all the message in the fifo",        printFifo_cmd},
-    { "threshold", "Change SNR threshold", threshold_cmd},
-    { "test_msg", "Test the message treatment", test_msg_cmd},
+    { "threshold", "Change SNR threshold",                   threshold_cmd},
+    { "test_msg", "Test the message treatment",              test_msg_cmd},
     { NULL, NULL, NULL }
 };
 
