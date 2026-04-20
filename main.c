@@ -631,7 +631,18 @@ void lora_mesh_renvois(char* message,int SNR){
         strncpy(new_message,message,index);
         strncpy(new_message + index, ttl_char, strlen(ttl_char));
         strncpy(new_message + index + strlen(ttl_char), message + index + cmp, 32 - index - cmp);
-        printf("new message : %s\n",new_message); //la on le renvois
+        iolist_t iolist = {
+            .iol_base = new_message,
+            .iol_len = (strlen(new_message) + 1)
+        };
+
+        netdev_t *netdev = &sx127x.netdev;
+
+        if (netdev->driver->send(netdev, &iolist) == -ENOTSUP) {
+            puts("Cannot send: radio is still transmitting");
+        }
+        printf("renvois \"%s\" payload (%u bytes)\n",
+           new_message, (unsigned)strlen(new_message) + 1);
     }
 }
 
@@ -882,7 +893,7 @@ int test_msg_cmd(int argc, char** argv){
             strncpy(message,argv[1],32);
             if(!isInFifo(fifo_msg,message)){
                 pushFifo(fifo_msg, message);
-                lora_mesh_renvois(message);
+                lora_mesh_renvois(message,(int)SNR_threshold - 1);
             }
             User* user = malloc(sizeof(User));
             user->username = malloc(sizeof(char) * MAX_USER_NAME + 1);
