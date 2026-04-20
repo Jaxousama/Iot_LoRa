@@ -1111,7 +1111,7 @@ static const shell_command_t shell_commands[] = {
     { "msg_list", "Show all the message in the fifo",        printFifo_cmd},
     { "threshold", "Change SNR threshold",                   threshold_cmd},
     { "test_msg", "Test the message treatment",              test_msg_cmd},
-    { "change_pseudo", "Change pseudo",                      pseudo_change_cmd}
+    { "change_pseudo", "Change pseudo",                      pseudo_change_cmd},
     { NULL, NULL, NULL }
 };
 
