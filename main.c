@@ -32,6 +32,8 @@
 #include "thread.h"
 #include "shell.h"
 //#include "shell_commands.h"
+#include "event/deferred_callback.h"
+#include "event/thread.h"
 
 #include "net/netdev.h"
 #include "net/netdev/lora.h"
@@ -55,6 +57,8 @@
 #define MAX_USER 20
 #define MAX_CHANNEL 10
 #define TTL 3
+#define RELAY_DELAY_MS 5000U
+#define RELAY_JOB_SLOTS 4
 
 static char stack[SX127X_STACKSIZE];
 static kernel_pid_t _recv_pid;
@@ -70,6 +74,14 @@ static List* list_user;
 
 static char** list_channel;
 static Fifo* fifo_msg;
+
+typedef struct {
+    event_deferred_callback_t deferred;
+    char message[32];
+    bool busy;
+} relay_job_t;
+
+static relay_job_t relay_jobs[RELAY_JOB_SLOTS];
 
 typedef struct user_info{
     int num;
@@ -599,6 +611,48 @@ int payload_cmd(int argc, char **argv)
     return 0;
 }
 
+static void _relay_send_cb(void *arg)
+{
+    relay_job_t *job = (relay_job_t *)arg;
+    netdev_t *netdev = &sx127x.netdev;
+
+    iolist_t iolist = {
+        .iol_base = job->message,
+        .iol_len = (strlen(job->message) + 1)
+    };
+
+    if (netdev->driver->send(netdev, &iolist) == -ENOTSUP) {
+        puts("Cannot send: radio is still transmitting");
+    }
+    else {
+        printf("renvois \"%s\" payload (%u bytes)\n",
+               job->message, (unsigned)strlen(job->message) + 1);
+    }
+
+    job->busy = false;
+}
+
+static void _schedule_relay_send(const char *msg, uint32_t delay_ms)
+{
+    for (size_t i = 0; i < RELAY_JOB_SLOTS; i++) {
+        if (!relay_jobs[i].busy) {
+            relay_jobs[i].busy = true;
+            strncpy(relay_jobs[i].message, msg, sizeof(relay_jobs[i].message) - 1);
+            relay_jobs[i].message[sizeof(relay_jobs[i].message) - 1] = '\0';
+
+            event_deferred_callback_post(&relay_jobs[i].deferred,
+                                         EVENT_PRIO_MEDIUM,
+                                         ZTIMER_MSEC,
+                                         delay_ms,
+                                         _relay_send_cb,
+                                         &relay_jobs[i]);
+            return;
+        }
+    }
+
+    puts("Relay queue full: drop message");
+}
+
 void lora_mesh_renvois(char* message,int SNR){
     if(SNR > SNR_threshold){
         return;
@@ -631,18 +685,8 @@ void lora_mesh_renvois(char* message,int SNR){
         strncpy(new_message,message,index);
         strncpy(new_message + index, ttl_char, strlen(ttl_char));
         strncpy(new_message + index + strlen(ttl_char), message + index + cmp, 32 - index - cmp);
-        iolist_t iolist = {
-            .iol_base = new_message,
-            .iol_len = (strlen(new_message) + 1)
-        };
 
-        netdev_t *netdev = &sx127x.netdev;
-
-        if (netdev->driver->send(netdev, &iolist) == -ENOTSUP) {
-            puts("Cannot send: radio is still transmitting");
-        }
-        printf("renvois \"%s\" payload (%u bytes)\n",
-           new_message, (unsigned)strlen(new_message) + 1);
+        _schedule_relay_send(new_message, RELAY_DELAY_MS);
     }
 }
 

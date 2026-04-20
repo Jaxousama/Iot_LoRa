@@ -18,6 +18,9 @@ USEMODULE += shell
 USEMODULE += shell_cmds_default
 #USEMODULE += shell_commands
 USEMODULE += fmt
+USEMODULE += event_callback
+USEMODULE += event_thread
+USEMODULE += ztimer_msec
 
 DRIVER ?= sx1272
 # use SX1276 by default
