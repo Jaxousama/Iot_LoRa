@@ -9,7 +9,7 @@ make -j 4 flash
 
 Rejoindre le terminal de la Board avec tio
 
-Help pour afficher les commandes
+`Help` pour afficher les commandes
 
 utilisation de base pour vérifier la communication entre 2 cartes :
 
