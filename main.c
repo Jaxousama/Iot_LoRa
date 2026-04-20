@@ -599,7 +599,10 @@ int payload_cmd(int argc, char **argv)
     return 0;
 }
 
-void lora_meche_renvois(char* message){
+void lora_mesh_renvois(char* message,int SNR){
+    if(SNR > SNR_threshold){
+        return;
+    }
     int index = 0;
     while (message[index] != ':') {//on cherche le debut du numero
         index++;
@@ -659,7 +662,7 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
             dev->driver->recv(dev, message, len, &packet_info);
             if(!isInFifo(fifo_msg,message)){
                 pushFifo(fifo_msg, message);
-                lora_meche_renvois(message);
+                lora_mesh_renvois(message,(int)packet_info.snr);
             }
             User* user = malloc(sizeof(User));
             user->username = malloc(sizeof(char) * MAX_USER_NAME + 1);
@@ -879,7 +882,7 @@ int test_msg_cmd(int argc, char** argv){
             strncpy(message,argv[1],32);
             if(!isInFifo(fifo_msg,message)){
                 pushFifo(fifo_msg, message);
-                lora_meche_renvois(message);
+                lora_mesh_renvois(message);
             }
             User* user = malloc(sizeof(User));
             user->username = malloc(sizeof(char) * MAX_USER_NAME + 1);
