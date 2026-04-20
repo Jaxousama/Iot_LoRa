@@ -627,6 +627,7 @@ static void _relay_send_cb(void *arg)
     else {
         printf("renvois \"%s\" payload (%u bytes)\n",
                job->message, (unsigned)strlen(job->message) + 1);
+        changeResendStat(fifo_msg, job->message, RESEND_OK);
     }
 
     job->busy = false;
@@ -685,7 +686,7 @@ void lora_mesh_renvois(char* message,int SNR){
         strncpy(new_message,message,index);
         strncpy(new_message + index, ttl_char, strlen(ttl_char));
         strncpy(new_message + index + strlen(ttl_char), message + index + cmp, 32 - index - cmp);
-
+        changeResendStat(fifo_msg,message,RESEND_DELAYED);
         _schedule_relay_send(new_message, RELAY_DELAY_MS);
     }
 }
