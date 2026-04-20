@@ -27,6 +27,7 @@
 #include <inttypes.h>
 
 #include "struct/LinkListGeneric.h"
+#include "struct/Fifo.h"
 
 #include "thread.h"
 #include "shell.h"
@@ -65,6 +66,7 @@ static uint8_t number_user = 0;
 static List* list_user;
 
 static char** list_channel;
+static Fifo* fifo_msg;
 
 typedef struct user_info{
     int num;
@@ -619,6 +621,9 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
         case NETDEV_EVENT_RX_COMPLETE:
             len = dev->driver->recv(dev, NULL, 0, 0);
             dev->driver->recv(dev, message, len, &packet_info);
+            if(!isInFifo(fifo_msg,message)){
+                pushFifo(fifo_msg, message);
+            }
             User* user = malloc(sizeof(User));
             user->username = malloc(sizeof(char) * MAX_USER_NAME + 1);
             strncpy(user->username,message,MAX_USER_NAME);
@@ -641,7 +646,7 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
                         return;
                     } 
                 }
-            }else{ 
+            }else{
                 int size = index - 6;
                 char name_channel[size + 1];
                 strncpy(name_channel,message + 5,size);
@@ -760,6 +765,8 @@ int init_sx1272_cmd(int argc, char **argv)
             list_channel[i] = malloc(sizeof(char)*10);
             list_channel[i][0] = '\0';
         }
+
+        fifo_msg = initFifo();
         return 0;
 }
 
@@ -815,6 +822,88 @@ int print_channel_cmd(int argc, char** argv){
     return 0;
 }
 
+int printFifo_cmd(int argc, char** argv){
+    if(argc < 1){
+        return 1;
+    }
+    (void)argv[1];
+    printFifo(fifo_msg);
+    return 0;
+}
+
+int test_msg_cmd(int argc, char** argv){
+    (void)argc;
+    size_t len = (size_t)strlen(argv[1]) + 1;
+            char message[32];
+            strncpy(message,argv[1],32);
+            if(!isInFifo(fifo_msg,message)){
+                pushFifo(fifo_msg, message);
+            }
+            User* user = malloc(sizeof(User));
+            user->username = malloc(sizeof(char) * MAX_USER_NAME + 1);
+            strncpy(user->username,message,MAX_USER_NAME);
+            user->username[MAX_USER_NAME] = '\0';
+            int index = 0;
+            for(size_t i = MAX_USER_NAME; i < len; i++){
+                if(message[i] == ':'){
+                    index = i + 1;
+                    break;
+                }
+            }
+            if(message[MAX_USER_NAME] == '@'){
+                if(message[MAX_USER_NAME + 1]=='*'){
+                }
+                else{
+                    char recv_name[MAX_USER_NAME + 1];
+                    strncpy(recv_name,message + MAX_USER_NAME + 1 ,MAX_USER_NAME);
+                    recv_name[MAX_USER_NAME] = '\0';
+                    if(strcmp(recv_name,pseudo) != 0){
+                        return 1;
+                    } 
+                }
+            }else{
+                int size = index - 6;
+                char name_channel[size + 1];
+                strncpy(name_channel,message + 5,size);
+                name_channel[size] = '\0';
+                for(int i = 0;i<MAX_CHANNEL;i++){
+                    if(strcmp(name_channel,list_channel[i])==0){
+                        break;
+                    }
+                    if(i == MAX_CHANNEL - 1){
+                        return 1;
+                    }
+                }
+            }
+            int cmp = 0;
+            for(size_t i = index; i < len; i++){
+                if(message[i] == ':'){
+                    break;
+                }
+                cmp++;
+            }
+            char* tmp = malloc(sizeof(char) * cmp);
+            strncpy(tmp,message + index,cmp);
+            user->num = atoi(tmp);
+            int i;
+            if((i = findElem(list_user,user->username)) != -1){
+                removeIndex(list_user,i);
+                number_user--;
+            }
+            if(number_user == 3){
+                removeLast(list_user);
+            }
+            addHead(list_user,user);
+            number_user++;
+            // printf(
+            //     "{Payload: \"%s\" (%d bytes), RSSI: %i, SNR: %i, TOA: %" PRIu32 "}\n",
+            //     message, (int)len,
+            //     packet_info.rssi, (int)packet_info.snr,
+            //     sx127x_get_time_on_air((const sx127x_t *)dev, len));
+            printf("%s\n",message);
+            return 0;
+}
+
 static const shell_command_t shell_commands[] = {
 	{ "init",    "Initialize SX1272",     					init_sx1272_cmd },
 	{ "setup",    "Initialize LoRa modulation settings",     lora_setup_cmd },
@@ -830,10 +919,12 @@ static const shell_command_t shell_commands[] = {
     { "mp",      "Send raw payload string in a user",        mp_cmd },    
     { "listen",   "Start raw payload listener",              listen_cmd },
     { "reset",    "Reset the sx127x device",                 reset_cmd },
-    { "user_list", "Show user list", print_list_user},
-    { "subscribe", "Join a channel" , subscribe_cmd},
-    { "unsubscribe", "Unjoin a channel", unsubscribe_cmd},
-    { "channel_list", "Show all the channel", print_channel_cmd},
+    { "user_list", "Show user list",                         print_list_user},
+    { "subscribe", "Join a channel" ,                        subscribe_cmd},
+    { "unsubscribe", "Unjoin a channel",                     unsubscribe_cmd},
+    { "channel_list", "Show all the channel",                print_channel_cmd},
+    { "msg_list", "Show all the message in the fifo",        printFifo_cmd},
+    { "test_msg", "Test msg",        test_msg_cmd}, 
     { NULL, NULL, NULL }
 };
 

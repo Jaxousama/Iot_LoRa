@@ -1,6 +1,9 @@
 #include "Fifo.h"
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
 
-Fifo* initFifo(){
+Fifo* initFifo(void){
     Fifo* fifo = (Fifo*)malloc(sizeof(Fifo));
     fifo->head = 0;
     fifo->tail = 0;
@@ -22,7 +25,7 @@ int isFullFifo(Fifo* fifo){
 
 int pushFifo(Fifo* fifo, char* data){
     if(isFullFifo(fifo)){
-        return 0;
+        popFifo(fifo, NULL);
     }
     strncpy(fifo->data[fifo->tail], data, 32);
     fifo->tail = (fifo->tail + 1) % MAX_FIFO_SIZE;
@@ -85,4 +88,12 @@ int isInFifo(Fifo* fifo, char* data){   //split le msg en 2 et verfie si les 2 s
         index = (index + 1) % MAX_FIFO_SIZE;
     }
     return 0;
+}
+
+void printFifo(Fifo* fifo){
+    int index = fifo->head;
+    while(index != fifo->tail){
+        printf("%s\n", fifo->data[index]);
+        index = (index + 1) % MAX_FIFO_SIZE;
+    } 
 }
