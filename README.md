@@ -1,19 +1,17 @@
-# Simple test of driver
-
-## Build
+# Build 
+## Compiler
 
 ```bash
-make
-make BOARD=wyres-base DRIVER=sx1272 -j 16
+make -j 4 flash
 ```
 
 ## Usage
 
-In term type help to see commands
+Rejoindre le terminal de la Board avec tio
 
-type command to see how to use
+Help pour afficher les commandes
 
-basic use to check communication between 2 boards :
+utilisation de base pour vérifier la communication entre 2 cartes :
 
 * On receving board :
 ```
@@ -26,10 +24,32 @@ basic use to check communication between 2 boards :
 ```
 > setup 125 12 5
 > channel set 868000000
-> send This\ is\ RIOT!
+> send * Coucou tout le monde
 ```
 
 * On receiving board you should see :
 ```
-{Payload: "This is RIOT!" (13 bytes), RSSI: 103, SNR: 240}
+User@*:count,3:Coucou tout le monde
 ```
+
+# Features
+
+- Envoi de message privé, pour tous ou à un channels au formats LoRaMesh
+- Abonnement à des channels
+- Afficher la liste des channels
+- Afficher la liste des utilisateurs avec lesquels on discute
+- Fait transiter les messages possédant un TTL
+- Affichage des derniers messages reçus avec Status Pending, Pas transiter ou - Transiter
+
+# Commands
+
+Commande que l'on a rajoutée utilisable sur la board :
+- send : Permet d'envoyer un message dans un salon `usage: send <target channel> <payload>`
+- mp : Permet d'envoyer un message privé à une target `usage : mp <target> <payload>`
+- subscribe : Permet de s'abonner à un channel `usage: subscribe <channel name>`
+- unsubscribe : Permet de retirer son abonnement à un channel `usage: unsubscribe <channel name>`
+- channel_list : Permet d'afficher la liste de channel abonnés
+- msg_list : Permet d'afficher la liste des messages reçus
+- threshold : Permet d'afficher le Threshold pour le SNR `usage: threshold SNR`
+- test_msg : Permet de tester la réception de message
+- change_pseudo : Permet de changer de pseudo `usage: change_pseudo pseudo`

@@ -313,7 +313,7 @@ int register_cmd(int argc, char **argv)
 int mp_cmd(int argc, char **argv)
 {
     if (argc <= 2) {
-        puts("usage: send <target> <payload>");
+        puts("usage: mp <target> <payload>");
         return -1;
     }
 
@@ -1074,6 +1074,20 @@ int threshold_cmd(int argc, char** argv){
     
 }
 
+int pseudo_change_cmd(int argc, char** argv){
+    if(argc < 2){
+        printf("Miss argument usage : change_pseudo <pseudo>");
+        return 1;
+    }
+    if(strlen(argv[1])<4){
+        printf("pseudo too short");
+        return 1;
+    }
+
+    strncpy(pseudo,argv[1],4);
+
+}
+
 static const shell_command_t shell_commands[] = {
 	{ "init",    "Initialize SX1272",     					init_sx1272_cmd },
 	{ "setup",    "Initialize LoRa modulation settings",     lora_setup_cmd },
@@ -1096,6 +1110,7 @@ static const shell_command_t shell_commands[] = {
     { "msg_list", "Show all the message in the fifo",        printFifo_cmd},
     { "threshold", "Change SNR threshold",                   threshold_cmd},
     { "test_msg", "Test the message treatment",              test_msg_cmd},
+    { "change_pseudo", "Change pseudo",                      pseudo_change_cmd}
     { NULL, NULL, NULL }
 };
 
