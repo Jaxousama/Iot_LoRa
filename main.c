@@ -54,6 +54,7 @@
 #define  MAX_USER_NAME 4
 #define MAX_USER 20
 #define MAX_CHANNEL 10
+#define TTL 3
 
 static char stack[SX127X_STACKSIZE];
 static kernel_pid_t _recv_pid;
@@ -62,6 +63,8 @@ static char message[32];
 static sx127x_t sx127x;
 
 static uint8_t number_user = 0;
+
+static int SNR_threshold = 50;
 
 static List* list_user;
 
@@ -314,7 +317,7 @@ int mp_cmd(int argc, char **argv)
     }
     msg_content[tmp_size] = '\0';
 
-    size_t size_msg = strlen(pseudo) + strlen(argv[1]) + payload_len + 10;
+    size_t size_msg = strlen(pseudo) + strlen(argv[1]) + payload_len + sizeof(TTL) + 10;
     char *msg = malloc(size_msg);
     if (msg == NULL) {
         free(msg_content);
@@ -322,7 +325,7 @@ int mp_cmd(int argc, char **argv)
         return -1;
     }
 
-    sprintf(msg, "%s#%s:%lu:%s", pseudo, argv[1], msg_conter++, msg_content);
+    sprintf(msg, "%s#%s:%lu,%u:%s", pseudo, argv[1], msg_conter++, TTL, msg_content);
     printf("sending \"%s\" payload (%u bytes)\n",
            msg, (unsigned)strlen(msg) + 1);
     iolist_t iolist = {
@@ -373,7 +376,7 @@ int send_cmd(int argc, char **argv)
     }
     msg_content[tmp_size] = '\0';
 
-    size_t size_msg = strlen(pseudo) + strlen(argv[1]) + payload_len + 10;
+    size_t size_msg = strlen(pseudo) + strlen(argv[1]) + payload_len + sizeof(TTL) + 10;
     char *msg = malloc(size_msg);
     if (msg == NULL) {
         free(msg_content);
@@ -381,7 +384,7 @@ int send_cmd(int argc, char **argv)
         return -1;
     }
 
-    sprintf(msg, "%s#%s:%lu:%s", pseudo, argv[1], msg_conter++, msg_content);
+    sprintf(msg, "%s#%s:%lu,%u:%s", pseudo, argv[1], msg_conter++, TTL, msg_content);
     printf("sending \"%s\" payload (%u bytes)\n",
            msg, (unsigned)strlen(msg) + 1);
     iolist_t iolist = {
@@ -904,6 +907,16 @@ int test_msg_cmd(int argc, char** argv){
             return 0;
 }
 
+int threshold_cmd(int argc, char** argv){
+    if(argc < 1){
+        return 1;
+    }
+
+    SNR_threshold = argv[1];
+    return 0;
+    
+}
+
 static const shell_command_t shell_commands[] = {
 	{ "init",    "Initialize SX1272",     					init_sx1272_cmd },
 	{ "setup",    "Initialize LoRa modulation settings",     lora_setup_cmd },
@@ -919,12 +932,12 @@ static const shell_command_t shell_commands[] = {
     { "mp",      "Send raw payload string in a user",        mp_cmd },    
     { "listen",   "Start raw payload listener",              listen_cmd },
     { "reset",    "Reset the sx127x device",                 reset_cmd },
-    { "user_list", "Show user list",                         print_list_user},
-    { "subscribe", "Join a channel" ,                        subscribe_cmd},
-    { "unsubscribe", "Unjoin a channel",                     unsubscribe_cmd},
-    { "channel_list", "Show all the channel",                print_channel_cmd},
+    { "user_list", "Show user list", print_list_user},
+    { "subscribe", "Join a channel" , subscribe_cmd},
+    { "unsubscribe", "Unjoin a channel", unsubscribe_cmd},
+    { "channel_list", "Show all the channel", print_channel_cmd},
     { "msg_list", "Show all the message in the fifo",        printFifo_cmd},
-    { "test_msg", "Test msg",        test_msg_cmd}, 
+    { "threshold", "Change SNR threshold", threshold_cmd},
     { NULL, NULL, NULL }
 };
 
