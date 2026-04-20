@@ -24,7 +24,7 @@ DRIVER ?= sx1272
 USEMODULE += $(DRIVER)
 
 SRC += main.c
-SRC += struct/LinkListGeneric.c
+SRC += struct/LinkListGeneric.c struct/Fifo.c
 
 # Fix the problem of the size of the debugging files
 CFLAGS_DBG = 

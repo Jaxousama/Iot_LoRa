@@ -10,7 +10,7 @@ typedef struct fifo{
 }Fifo;
 
 
-Fifo* initFifo();
+Fifo* initFifo(void);
 
 int deleteFifo(Fifo* fifo);
 
@@ -24,4 +24,5 @@ int popFifo(Fifo* fifo, char* data); //renvois 1 si pop reussi, 0 sinon, data es
 
 int isInFifo(Fifo* fifo, char* data); //verifie si data est dans le fifo, sans compter le ttl. renvois 1 si data est dans le fifo, 0 sinon
 
+void printFifo(Fifo* fifo); //affiche le fifo
 #endif
