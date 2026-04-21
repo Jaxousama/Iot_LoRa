@@ -69,7 +69,7 @@ static sx127x_t sx127x;
 
 static uint8_t number_user = 0; // nombre d'utilisateurs dans la liste des utilisateurs connus
 
-static int SNR_threshold = -5;  
+static int SNR_threshold = 0;  
 
 static List* list_user;     // liste des utilisateurs connus
 
@@ -690,6 +690,7 @@ static void _schedule_relay_send(const char *msg, uint32_t delay_ms)
 
 //fonction qui décide si un message doit être renvoyé ou pas en fonction de son SNR et de son TTL, et qui planifie son renvoi si besoin
 void lora_mesh_renvois(char* message,int SNR){
+	printf("SNR : %d",SNR);
     if(SNR > SNR_threshold){    // si le message est de bonne qualité, on ne le renvoie pas (il vient d'une carte proche)
         return;
     }
