@@ -69,7 +69,7 @@ static sx127x_t sx127x;
 
 static uint8_t number_user = 0; // nombre d'utilisateurs dans la liste des utilisateurs connus
 
-static int SNR_threshold = 50;  
+static int SNR_threshold = -5;  
 
 static List* list_user;     // liste des utilisateurs connus
 
