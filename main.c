@@ -690,7 +690,7 @@ static void _schedule_relay_send(const char *msg, uint32_t delay_ms)
 
 //fonction qui décide si un message doit être renvoyé ou pas en fonction de son SNR et de son TTL, et qui planifie son renvoi si besoin
 void lora_mesh_renvois(char* message,int SNR){
-	printf("SNR : %d",SNR);
+	printf("SNR : %d \n",SNR);
     if(SNR > SNR_threshold){    // si le message est de bonne qualité, on ne le renvoie pas (il vient d'une carte proche)
         return;
     }
